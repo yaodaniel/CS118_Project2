@@ -1,0 +1,21 @@
+CC=gcc
+CFLAGS=-I.
+DEPS = # header file 
+OBJ = sender.o
+OBJJ = receiver.o
+
+%.o: %.cpp $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+sender: $(OBJ)
+	$(CC) -o $@ $^ $(CFLAGS)
+
+receiver: $(OBJJ)
+	  $(CC) -o $@ $^ $(CFLAGS)
+
+clean:
+	$(RM) sender
+	$(RM) sender.o
+	$(RM) receiver
+	$(RM) receiver.o
+
