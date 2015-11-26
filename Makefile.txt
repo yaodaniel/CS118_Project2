@@ -1,11 +1,14 @@
-CC=gcc
+CC=g++
 CFLAGS=-I.
-DEPS = # header file 
+DEPS = packet.h # header file 
 OBJ = sender.o
 OBJJ = receiver.o
+MAKE = make
 
 %.o: %.cpp $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
+
+all:	sender receiver
 
 sender: $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS)
@@ -18,4 +21,3 @@ clean:
 	$(RM) sender.o
 	$(RM) receiver
 	$(RM) receiver.o
-
