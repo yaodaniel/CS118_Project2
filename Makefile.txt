@@ -8,7 +8,7 @@ MAKE = make
 %.o: %.cpp $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-all:	sender receiver
+all:	clean sender receiver
 
 sender: $(OBJ)
 	$(CC) -o $@ $^ $(CFLAGS)
