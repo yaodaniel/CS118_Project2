@@ -3,26 +3,11 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h>      // define structures like hostent
+#include <netdb.h>   // define structures like hostent
 #include <stdlib.h>
 #include <packet.h>
-#include <fcntl.h>
 
-/*GO BACK-N 
-** Receiver **
-1. Doesn't need to keep track of a window
-2. Receiver drops all packets not received in sequence
-3. ACKS server of the correctly in-order received SEQ #
-4. Receiver checks for current SEQ # first before checking last packet flag
-
-** Sender **
-1. Sequence # starts at 1
-2. Need at least CWND + 1 SEQ #s
-3. 1 timer for entire CWND
-4. Sends all packets in CWND.
-5. When an appropriate ACK is received, increment window
-*/
-
+/*GO BACK-N Receiver*/
 int main(int argc, char *argv[]) { //hostAddress, hostPort, requestedFile, Pr(loss), Pr(corruption)
 	int receiver_sockfd; //Socket descriptor
 	int portno, n;
@@ -65,7 +50,7 @@ int main(int argc, char *argv[]) { //hostAddress, hostPort, requestedFile, Pr(lo
 	//We use the packet struct to modify buffer's values
 	Packet = (packet*)buffer;
 	//setsockopt(receiver_sockfd, SOL_SOCKET, SO_RCVTIMEO,(char*)&timeout,sizeof(struct timeval));
-	fcntl(receiver_sockfd, F_SETFL, O_NONBLOCK);
+	//fcntl(receiver_sockfd, F_SETFL, O_NONBLOCK);
 	socklen_t serv_addr_size = sizeof(serv_addr);
 
 	//SIMPLIFIED THREE WAY HANDSHAKE
@@ -110,6 +95,14 @@ int main(int argc, char *argv[]) { //hostAddress, hostPort, requestedFile, Pr(lo
 			if(n != -1)
 				break;
 		}
+		if(random_prob() < lossProbability) {
+			printf("Packet was lost.\n");
+			continue;
+		}
+		if(random_prob() < corruptionProbability) {
+			printf("Packet corrupted.\n");
+			continue;
+		}
 		if(n >= 0) {
 			printf("Received following packet with : %zd bytes\n", n);
 			printPacket(Packet);
@@ -138,6 +131,7 @@ int main(int argc, char *argv[]) { //hostAddress, hostPort, requestedFile, Pr(lo
 					}
 					else {
 						printf("FIN Sent: %d bytes\n", n);
+						free(buffer);
 						break;
 					}
 				}
@@ -166,7 +160,7 @@ int main(int argc, char *argv[]) { //hostAddress, hostPort, requestedFile, Pr(lo
 				continue;
 			}
 		}
-		else { //Resend current packet (either initial file request or ACKs)
+		else { //Unexpected results, Resend current packet (either initial file request or ACKs)
 			n = sendto(receiver_sockfd, buffer, PACKET_SIZE, 0, (const sockaddr*)&serv_addr, serv_addr_size);	
 			if(n < 0)
 				printf("ERROR in sendto\n");

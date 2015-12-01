@@ -82,3 +82,6 @@ void initializePackets(int isFinalPacket, int type, unsigned long seqNum, unsign
 	inputPacket->ACK_num = ACK_num;
 	inputPacket->total_size = total_size;
 }
+double random_prob() {
+	return (rand() % 100)/100.0;
+}
