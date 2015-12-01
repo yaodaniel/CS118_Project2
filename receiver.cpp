@@ -3,11 +3,24 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h>   // define structures like hostent
+#include <netdb.h>      // define structures like hostent
 #include <stdlib.h>
 #include <packet.h>
 
-/*GO BACK-N Receiver*/
+/*GO BACK-N 
+** Receiver **
+1. Doesn't need to keep track of a window
+2. Receiver drops all packets not received in sequence
+3. ACKS server of the correctly in-order received SEQ #
+4. Receiver checks for current SEQ # first before checking last packet flag
+** Sender **
+1. Sequence # starts at 1
+2. Need at least CWND + 1 SEQ #s
+3. 1 timer for entire CWND
+4. Sends all packets in CWND.
+5. When an appropriate ACK is received, increment window
+*/
+
 int main(int argc, char *argv[]) { //hostAddress, hostPort, requestedFile, Pr(loss), Pr(corruption)
 	int receiver_sockfd; //Socket descriptor
 	int portno, n;
@@ -130,9 +143,9 @@ int main(int argc, char *argv[]) { //hostAddress, hostPort, requestedFile, Pr(lo
 						printf("ERROR sending FIN\n");
 					}
 					else {
-						printf("FIN Sent: %d bytes\n", n);
+						printf("FIN Sent: %d bytes\n", n); 
 						free(buffer);
-						break;
+						break; //We're not waiting for server to respond to this FIN
 					}
 				}
 				else { //ACK for current received packet.

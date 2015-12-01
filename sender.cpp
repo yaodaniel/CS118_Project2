@@ -7,10 +7,21 @@
 #include <fcntl.h>
 #include <time.h>
 
+/*GO BACK-N 
+** Receiver **
+1. Doesn't need to keep track of a window
+2. Receiver drops all packets not received in sequence
+3. ACKS server of the correctly in-order received SEQ #
+4. Receiver checks for current SEQ # first before checking last packet flag
+** Sender **
+1. Need at least CWND + 1 SEQ #s
+2. 1 timer for entire CWND
+3. Sends all packets in CWND.
+4. When an appropriate ACK is received, increment window
+*/
 #define TIMEOUT 2
 #define TcpMaxDataRetransmissions 5
 
-/*GO BACK-N Sender */
 int main(int argc, char *argv[]) { //portNumber, CWND, Pr(loss), Pr(corruption)
 	int server_sockfd, newsockfd, portno, window_size = 1, window_start_index = 0; //Default window Size
 	double lossProbability = 0.0, corruptionProbability = 0.0; //Assume no loss/corruption by default
