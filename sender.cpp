@@ -6,6 +6,7 @@
 #include <netinet/in.h>  // constants and structures needed for internet domain addresses, e.g. sockaddr_in
 #include <fcntl.h>
 #include <time.h>
+#include <cmath>
 
 /*GO BACK-N 
 ** Receiver **
@@ -23,13 +24,14 @@
 #define TcpMaxDataRetransmissions 5
 
 int main(int argc, char *argv[]) { //portNumber, CWND, Pr(loss), Pr(corruption)
+	srand(time(0)); //Seed random number generator
 	int server_sockfd, newsockfd, portno, window_size = 1, window_start_index = 0; //Default window Size
 	double lossProbability = 0.0, corruptionProbability = 0.0; //Assume no loss/corruption by default
 	socklen_t clilen;
 	struct sockaddr_in serv_addr, cli_addr;
 	char buffer[PACKET_SIZE];
 	bzero(buffer, PACKET_SIZE);
-	struct timeval timeout={2,0}; //set timeout for 2 seconds
+	//struct timeval timeout={2,0}; //set timeout for 2 seconds must be greater than TIMEOUT
 	packet* Packet = (packet*)buffer;
 	time_t timer;
 	int timedOutCount = 0; //Keep track of the number of consecutive timeouts
@@ -39,9 +41,13 @@ int main(int argc, char *argv[]) { //portNumber, CWND, Pr(loss), Pr(corruption)
 		exit(1);
 	}
 	if(argc == 2) { //Only provided a port # assume no loss/corruption
+		printf("NOTE: CWND is set to 1 packet of size 1024 bytes, assuming no loss/corruption\n");
 	}
 	if(argc == 5) { //Use selected values for CWND, loss, & corruption
-		window_size = atoi(argv[2]);
+		//CWND will be passed in as bytes, so we need to convert it to packet counts.
+		int count = atoi(argv[2])/(PACKET_SIZE+1);
+		window_size = std::max(1,(int)(count+1));
+		printf("NOTE: CWND of %d bytes is converted to CWND of %d packet(s) each of size %d bytes\n", atoi(argv[2]), window_size, PACKET_SIZE);
 		lossProbability = atof(argv[3]);
 		corruptionProbability = atof(argv[4]);
 	}
@@ -49,7 +55,7 @@ int main(int argc, char *argv[]) { //portNumber, CWND, Pr(loss), Pr(corruption)
 	//setsockopt(server_sockfd, SOL_SOCKET, SO_RCVTIMEO,(char*)&timeout,sizeof(struct timeval));
 	
 	portno = atoi(argv[1]);
-	printf("SERVER STARTED ON PORT: %d\n", portno);
+	printf("SERVER STARTED, AWAITING NEW REQUESTS ON PORT: %d\n", portno);
 	server_sockfd = socket(AF_INET, SOCK_DGRAM, 0); //Create UDP socket
 		if(server_sockfd < 0)
 			fprintf(stderr, "ERROR creating UDP socket");
@@ -98,7 +104,8 @@ int main(int argc, char *argv[]) { //portNumber, CWND, Pr(loss), Pr(corruption)
 		FILE* fp = fopen((const char*)Packet->data, "r");
 		if(fp == NULL) {
 			fprintf(stderr, "Failed to open requested file\n");
-			//TODO notify client or just ignore?
+			//Ignore and go back to listen
+			printf("AWAITING NEW REQUESTS ON PORT: %d\n", portno);
 			goto LISTEN; //Go back to listening state
 		}
 
@@ -166,9 +173,8 @@ int main(int argc, char *argv[]) { //portNumber, CWND, Pr(loss), Pr(corruption)
 				//printf("time now: %ld, timer+timeout: %ld", time(NULL), timer+TIMEOUT);
 				if (time(NULL) > timer + TIMEOUT && timedOut == false) {
 					//std::cout << "timing out\n";
-					printf("Timing out, resending window from packet num %d ", window_start_index);
+					printf("Timing out...");
 					timedOut = true;
-					timedOutCount++;
 					if(timedOutCount >= TcpMaxDataRetransmissions) {
 						bzero(buffer, PACKET_SIZE);
 						window_start_index = 0;
@@ -177,10 +183,12 @@ int main(int argc, char *argv[]) { //portNumber, CWND, Pr(loss), Pr(corruption)
 						}
 						fclose(fp);
 						timedOutCount = 0;
-						printf("\nMax retransmission reached...\n");
-						printf("AWAITING REQUESTS ON PORT: %d\n", portno);
+						printf("\nMax retransmissions reached...\n");
+						printf("AWAITING NEW REQUESTS ON PORT: %d\n", portno);
 						goto LISTEN;
 					}
+					timedOutCount++;
+					printf("Resending window from packet num %d \n", window_start_index);
 					goto resend_window;
 				}
 				if (recvfrom(server_sockfd, buffer, PACKET_SIZE, 0, (struct sockaddr *) &cli_addr, &clilen) > 0) {

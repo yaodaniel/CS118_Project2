@@ -22,11 +22,12 @@
 */
 
 int main(int argc, char *argv[]) { //hostAddress, hostPort, requestedFile, Pr(loss), Pr(corruption)
+	srand(time(0)); //Seed random number generator
 	int receiver_sockfd; //Socket descriptor
 	int portno, n;
 	struct sockaddr_in serv_addr;
 	struct hostent *server; //Contains info regarding server IP and others
-	struct timeval timeout={2,0}; //set timeout for 2 seconds
+	struct timeval timeout={5,0}; //set timeout for 5 seconds
 	packet* Packet;
 	char* buffer = (char *)calloc(PACKET_SIZE, sizeof(char));
 	unsigned long currentExpectedSeqNumber = 4;
@@ -62,7 +63,7 @@ int main(int argc, char *argv[]) { //hostAddress, hostPort, requestedFile, Pr(lo
     	serv_addr.sin_port = htons(portno);
 	//We use the packet struct to modify buffer's values
 	Packet = (packet*)buffer;
-	//setsockopt(receiver_sockfd, SOL_SOCKET, SO_RCVTIMEO,(char*)&timeout,sizeof(struct timeval));
+	setsockopt(receiver_sockfd, SOL_SOCKET, SO_RCVTIMEO,(char*)&timeout,sizeof(struct timeval));
 	//fcntl(receiver_sockfd, F_SETFL, O_NONBLOCK);
 	socklen_t serv_addr_size = sizeof(serv_addr);
 
@@ -102,11 +103,16 @@ int main(int argc, char *argv[]) { //hostAddress, hostPort, requestedFile, Pr(lo
 
 	//GO BACK-N FILE TRANSFER STARTS
 	while(1) {
-		while(1) {
+		//while(1) {
 			//TODO IF NO RESPONSE IN # TIME, BREAK
 			n = recvfrom(receiver_sockfd, buffer, PACKET_SIZE, 0, (sockaddr*) &serv_addr, &serv_addr_size);
-			if(n != -1)
-				break;
+			//if(n != -1)
+				//break;
+		//}
+		if(n == -1) {
+			printf("Socket timed out, assuming sender dc-ed, exiting...\n");
+			free(buffer);
+			exit(1);
 		}
 		if(random_prob() < lossProbability) {
 			printf("Packet was lost.\n");
